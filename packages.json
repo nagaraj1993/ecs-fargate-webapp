@@ -1,0 +1,14 @@
+{
+  "name": "ecs-fargate-webapp",
+  "version": "1.0.0",
+  "description": "A simple Node.js web app for ECS Fargate hands-on.",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "author": "Achyuth",
+  "license": "ISC"
+}
