@@ -1,2 +1,2 @@
 # ecs-fargate-webapp
-My handson for deploying web app on ECS Fargate
+My handson task for deploying web app on ECS Fargate
