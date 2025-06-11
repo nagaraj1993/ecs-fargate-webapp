@@ -90,7 +90,6 @@ resource "aws_iam_role_policy" "codebuild_policy" {
         Resource = [
           "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:${local.codebuild_log_group_name}",
           "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:${local.codebuild_log_group_name}:*"
- 
         ]
       },
       # Permissions for CodeBuild to read from S3 for source (if S3 source was used)
@@ -119,7 +118,7 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "ecr:ListImages",
           "ecr:DescribeImages",
           "ecr:BatchGetImage",
-          "ecr:GetAuthorizationToken",
+          "ecr:GetAuthorizationToken", # <--- THIS IS THE MISSING PERMISSION
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
