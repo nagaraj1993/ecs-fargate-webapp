@@ -118,13 +118,13 @@ resource "aws_iam_role_policy" "codebuild_policy" {
           "ecr:ListImages",
           "ecr:DescribeImages",
           "ecr:BatchGetImage",
-          "ecr:GetAuthorizationToken", # <--- THIS IS THE MISSING PERMISSION
+          "ecr:GetAuthorizationToken",
           "ecr:InitiateLayerUpload",
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
           "ecr:PutImage"
         ],
-        Resource = aws_ecr_repository.web_app.arn # Grant permissions to your specific ECR repo
+        Resource = "*" # Change this to "*" for all ECR actions to resolve potential resource scoping issues
       },
       # Permissions for CodeBuild to assume service roles (if needed for other actions)
       {
