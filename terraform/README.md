@@ -5,7 +5,8 @@ terraform apply -var-file="environments/non-prod.tfvars" -var-file="secrets.tfva
 
 Useful commands:
 export AWS_PROFILE="vscode-user" 
-git rebase -i HEAD~1   
+git rebase -i HEAD~1
+   
 terraform force-unlock <LockID> #For example: bd42079d-713e-ad34-02b9-848bc51f2759 
 rm -rf .terraform/                                                                                                                                     ✔  03:11:24 PM 
 rm -f .terraform.lock.hcl

@@ -467,46 +467,59 @@ resource "aws_lb_listener" "http_listener" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.web_app_tg_blue.arn
   }
+
+  lifecycle {
+    ignore_changes = [
+      default_action,
+    ]
+  }
 }
 
 # 13. ECS Service
 # Deploys and manages your Fargate tasks.
 resource "aws_ecs_service" "web_app_service" {
-  name            = "${var.project_name_prefix}-${var.environment_name}-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.web_app_task.arn
-  desired_count   = 1 # CodeDeploy will manage the task count during deployments.
-  launch_type     = "FARGATE"
+  name                  = "${var.project_name_prefix}-${var.environment_name}-service"
+  cluster               = aws_ecs_cluster.main.id
+  task_definition       = aws_ecs_task_definition.web_app_task.arn
+  desired_count         = 1 # Initial count. CodeDeploy and/or auto-scaling will manage this later.
+  launch_type           = "FARGATE"
+  #platform_version = "LATEST"
+  health_check_grace_period_seconds = 60
 
-  # Network configuration for Fargate tasks
-  network_configuration {
-    subnets         = var.private_subnet_ids # Fargate tasks typically go in private subnets
-    security_groups = [aws_security_group.ecs_tasks_sg.id]
-    assign_public_ip = false # Tasks in private subnets do not need public IPs
-  }
-
-  # --- ADD THIS BLOCK ---
-  # This is the critical change that gives CodeDeploy control over this service.
+  # This tells the service that CodeDeploy will manage its deployments.
   deployment_controller {
     type = "CODE_DEPLOY"
   }
-  # ----------------------
 
-  # Integration with ALB
+  # Initial load balancer configuration. Terraform sets this once.
   load_balancer {
-    target_group_arn = aws_lb_target_group.web_app_tg_blue.arn
-    container_name   = "${var.project_name_prefix}-${var.environment_name}-webapp" # Name from task definition
-    container_port   = 3000 # Port your app listens on
+    target_group_arn = aws_lb_target_group.web_app_tg_blue.arn # Point to blue initially
+    container_name   = "${var.project_name_prefix}-${var.environment_name}-webapp"
+    container_port   = 3000
   }
 
-  # Ensure the service waits for the ALB and target group to be ready.
-  # It's also best practice to depend on the CodeDeploy role being fully configured.
+  network_configuration {
+    subnets          = var.private_subnet_ids
+    security_groups  = [aws_security_group.ecs_tasks_sg.id]
+    assign_public_ip = false
+  }
+
+  # --- THIS IS THE FIX ---
+  # Tell Terraform to create the service with these values but never
+  # try to change them back if an external process (like CodeDeploy)
+  # updates them.
+  lifecycle {
+    ignore_changes = [
+      task_definition, # CodeDeploy updates this with new revisions.
+      load_balancer,   # CodeDeploy swaps target groups during blue/green.
+      desired_count   # CodeDeploy manages the task count during deployments.
+    ]
+  }
+  # ----------------------
+
+  # Ensure the service waits for dependencies to be ready.
   depends_on = [
     aws_lb_listener.http_listener,
-    # --- IMPORTANT: Add this dependency ---
-    # This prevents a race condition where the service tries to register with
-    # CodeDeploy before its IAM role and policy are created.
-    # The resource name must match the one in your cicd.tf file.
     aws_iam_role_policy_attachment.codedeploy_ecs_policy
   ]
 
