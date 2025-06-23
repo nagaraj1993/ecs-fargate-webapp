@@ -1,4 +1,4 @@
-# 1. AWS ECS Cluster
+# AWS ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name_prefix}-${var.environment_name}-ecs-cluster"
 
@@ -7,45 +7,7 @@ resource "aws_ecs_cluster" "main" {
   }
 }
 
-# 2. AWS ECR to store Docker images
-resource "aws_ecr_repository" "web_app" {
-  name                 = "${lower(var.project_name_prefix)}-${var.environment_name}-webapp"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-
-  tags = {
-    Name = "${var.project_name_prefix}-${var.environment_name}-webapp-ecr"
-  }
-}
-
-# 3. AWS ECR Lifecycle Policy
-resource "aws_ecr_lifecycle_policy" "web_app_policy" {
-  repository = aws_ecr_repository.web_app.name
-  policy = <<EOF
-{
-    "rules": [
-        {
-            "rulePriority": 1,
-            "description": "Expire images older than 10 days",
-            "selection": {
-                "tagStatus": "untagged",
-                "countType": "sinceImagePushed",
-                "countUnit": "days",
-                "countNumber": 10
-            },
-            "action": {
-                "type": "expire"
-            }
-        }
-    ]
-}
-EOF
-}
-
-# 4. IAM Role for ECS Task Execution
+# IAM Role for ECS Task Execution
 # This role is assumed by the ECS agent to run tasks (e.g., pull images, send logs).
 resource "aws_iam_role" "ecs_task_execution_role" {
   name_prefix = "${var.project_name_prefix}-${var.environment_name}-ecs-task-execution-"
@@ -293,7 +255,7 @@ resource "aws_iam_role" "ecs_task_role" {
 #   }
 # }
 
-# 6. ECS Task Definition
+# ECS Task Definition
 # This defines your containerized application (its image, resources, ports, etc.).
 resource "aws_ecs_task_definition" "web_app_task" {
   family                   = "${var.project_name_prefix}-${var.environment_name}-webapp-task"
@@ -332,7 +294,7 @@ resource "aws_ecs_task_definition" "web_app_task" {
   }
 }
 
-# 7. CloudWatch Log Group for ECS Task Definition
+# CloudWatch Log Group for ECS Task Definition
 # This ensures that logs from your Fargate tasks are sent to CloudWatch.
 resource "aws_cloudwatch_log_group" "webapp_log_group" {
   name              = "/ecs/fargate/${var.project_name_prefix}-${var.environment_name}-webapp"
@@ -343,7 +305,7 @@ resource "aws_cloudwatch_log_group" "webapp_log_group" {
   }
 }
 
-# 8. ALB Security Group
+# ALB Security Group
 # Allows inbound HTTP traffic to the ALB.
 resource "aws_security_group" "alb_sg" {
   name_prefix = "${var.project_name_prefix}-${var.environment_name}-alb-sg-"
@@ -369,7 +331,7 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# 9. ECS Fargate Task Security Group
+# ECS Fargate Task Security Group
 # Allows inbound traffic from the ALB, and all outbound traffic.
 resource "aws_security_group" "ecs_tasks_sg" {
   name_prefix = "${var.project_name_prefix}-${var.environment_name}-ecs-tasks-sg-"
@@ -397,7 +359,7 @@ resource "aws_security_group" "ecs_tasks_sg" {
   }
 }
 
-# 10. Application Load Balancer (ALB)
+# Application Load Balancer (ALB)
 resource "aws_lb" "web_app_alb" {
   name               = "${var.project_name_prefix}-${var.environment_name}-alb"
   internal           = false # Publicly accessible ALB
@@ -410,7 +372,7 @@ resource "aws_lb" "web_app_alb" {
   }
 }
 
-# 11. ALB Target Group
+# ALB Target Group
 # Targets are the Fargate tasks running your web app.
 resource "aws_lb_target_group" "web_app_tg_blue" {
   name        = "${var.project_name_prefix}-${var.environment_name}-tg"
@@ -456,7 +418,7 @@ resource "aws_lb_target_group" "web_app_tg_green" {
   }
 }
 
-# 12. ALB Listener
+# ALB Listener
 # Forwards HTTP traffic from ALB to the target group.
 resource "aws_lb_listener" "http_listener" {
   load_balancer_arn = aws_lb.web_app_alb.arn
@@ -475,7 +437,7 @@ resource "aws_lb_listener" "http_listener" {
   }
 }
 
-# 13. ECS Service
+# ECS Service
 # Deploys and manages your Fargate tasks.
 resource "aws_ecs_service" "web_app_service" {
   name                  = "${var.project_name_prefix}-${var.environment_name}-service"
