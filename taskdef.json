@@ -19,12 +19,35 @@
           "awslogs-region": "eu-central-1",
           "awslogs-stream-prefix": "ecs"
         }
-      }
+      },
+      "mountPoints": [
+        {
+          "sourceVolume": "MyWebApp-non-prod-webapp-efs-volume",
+          "containerPath": "/app/data",
+          "readOnly": false
+        }
+      ]
     }
   ],
   "requiresCompatibilities": ["FARGATE"],
   "networkMode": "awsvpc",
   "cpu": "256",
   "memory": "512",
-  "executionRoleArn": "arn:aws:iam::976863527497:role/ecsTaskExecutionRole"
+  "taskRoleArn": "arn:aws:iam::976863527497:role/MyWebApp-non-prod-ecs-task-app-20250630113235017700000001",
+  "executionRoleArn": "arn:aws:iam::976863527497:role/ecsTaskExecutionRole",
+  "volumes": [
+    {
+      "name": "MyWebApp-non-prod-webapp-efs-volume",
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-0a34e5ac8133759b8",
+        "rootDirectory": "/",
+        "transitEncryption": "ENABLED",
+        "transitEncryptionPort": 2049,
+        "authorizationConfig": {
+          "accessPointId": "fsap-08e354246d356df5e",
+          "iam": "ENABLED"
+        }
+      }
+    }
+  ]
 }

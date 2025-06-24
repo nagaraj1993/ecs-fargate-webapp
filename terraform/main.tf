@@ -42,6 +42,16 @@ module "vpc" {
 # //  instance_security_group_id = module.ec2_app.instance_security_group_id
 # }
 
+module "efs_storage" {
+  source = "./modules/efs" # Path to the new EFS module
+
+  project_name_prefix     = var.project_name_prefix
+  environment_name        = var.environment_name
+  vpc_id                  = module.vpc.vpc_id # Or your aws_vpc.main.id
+  private_subnet_ids      = module.vpc.private_subnet_ids # Or your aws_subnet.private_subnets.*.id
+  ecs_tasks_security_group_id = module.ecs_fargate.ecs_tasks_sg # Reference your existing ECS task SG ID
+}
+
 # Module for ECS Fargate resources
 module "ecs_fargate" {
   source = "./modules/ecs-fargate"
@@ -53,4 +63,7 @@ module "ecs_fargate" {
   public_subnet_ids   = module.vpc.public_subnet_ids
   private_subnet_ids  = module.vpc.private_subnet_ids
   github_pat = var.github_pat
+  efs_file_system_id  = module.efs_storage.efs_file_system_id
+  efs_access_point_id = module.efs_storage.efs_access_point_id
+  efs_security_group_id = module.efs_storage.efs_security_group_id
 }
