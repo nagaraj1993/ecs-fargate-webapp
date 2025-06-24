@@ -1,25 +1,3 @@
-# IAM Role for CodePipeline
-resource "aws_iam_role" "codepipeline_role" {
-  name = "${var.project_name_prefix}-${var.environment_name}-codepipeline-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Principal = {
-          Service = "codepipeline.amazonaws.com"
-        },
-        Action = "sts:AssumeRole"
-      }
-    ]
-  })
-
-  tags = {
-    Name = "${var.project_name_prefix}-${var.environment_name}-codepipeline-role"
-  }
-}
-
 # ecsTaskExecutionRole. This name must exactly match the role name in taskdef.json ARN
 resource "aws_iam_role" "ecs_task_execution_role_ecsdeploy" {
   name = "ecsTaskExecutionRole" # This name must match what's in your taskdef.json
@@ -49,6 +27,64 @@ resource "aws_iam_role" "ecs_task_execution_role_ecsdeploy" {
 resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_attachment" {
   role       = aws_iam_role.ecs_task_execution_role_ecsdeploy.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# IAM Policy for ECS Task Execution Role to access EFS (for IAM authorization with EFS Access Points)
+resource "aws_iam_policy" "ecs_task_execution_efs_policy" {
+  name        = "${var.project_name_prefix}-${var.environment_name}-ecs-task-execution-efs-policy"
+  description = "Allows ECS tasks using ecsTaskExecutionRole to mount and use EFS via Access Point with IAM authorization."
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "elasticfilesystem:ClientMount",
+          "elasticfilesystem:ClientWrite",
+          "elasticfilesystem:ClientRootAccess",
+          # These Describe actions are often useful for debugging/visibility, though not strictly required for mounting
+          "elasticfilesystem:DescribeMountTargets",
+          "elasticfilesystem:DescribeFileSystems",
+          "elasticfilesystem:DescribeAccessPoints"
+        ]
+        # For stricter security, you can scope this down to specific EFS file system and access point ARNs:
+        # Resource = [
+        #   module.efs_storage.efs_file_system_id, # Assuming efs_storage module is used and outputs ID
+        #   module.efs_storage.efs_access_point_id # Assuming efs_storage module is used and outputs ID
+        # ]
+        Resource = "*" # Using "*" as per your other policies, but consider scoping down for production
+      },
+    ]
+  })
+}
+
+# Attach the custom EFS policy to the ECS Task Execution Role
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_efs_policy_attach" {
+  role       = aws_iam_role.ecs_task_execution_role_ecsdeploy.name # Reference your ECS task execution role
+  policy_arn = aws_iam_policy.ecs_task_execution_efs_policy.arn
+}
+
+# IAM Role for CodePipeline
+resource "aws_iam_role" "codepipeline_role" {
+  name = "${var.project_name_prefix}-${var.environment_name}-codepipeline-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "codepipeline.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name = "${var.project_name_prefix}-${var.environment_name}-codepipeline-role"
+  }
 }
 
 # IAM Policy for CodePipeline
@@ -129,7 +165,8 @@ resource "aws_iam_role_policy" "codepipeline_policy" {
         Resource = [
           aws_iam_role.codebuild_role.arn,
           aws_iam_role.codedeploy_role.arn,
-          aws_iam_role.ecs_task_execution_role_ecsdeploy.arn 
+          aws_iam_role.ecs_task_execution_role_ecsdeploy.arn,
+          aws_iam_role.ecs_task_role.arn 
         ]
       }
     ]
@@ -193,7 +230,7 @@ resource "aws_codepipeline" "web_app_pipeline" {
       configuration = {
         Owner      = "nagaraj1993" # Just your username/org
         Repo       = "ecs-fargate-webapp" # Just the repo name
-        Branch     = "main"
+        Branch     = "feature/efs"
         OAuthToken = data.aws_secretsmanager_secret_version.github_token_value_data.secret_string
       }
     }

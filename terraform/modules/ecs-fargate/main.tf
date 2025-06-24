@@ -266,6 +266,27 @@ resource "aws_ecs_task_definition" "web_app_task" {
   execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
   task_role_arn            = aws_iam_role.ecs_task_role.arn # Assign the application role
 
+  # --- EFS Volume Configuration ---
+  volume {
+    name = "${var.project_name_prefix}-${var.environment_name}-efs-volume"
+    efs_volume_configuration {
+      file_system_id          = var.efs_file_system_id
+      # Added: root_directory.
+      # Note: If an access_point_id is specified, this value is often ignored by ECS
+      # as the root directory is defined directly on the EFS Access Point itself.
+      root_directory          = "/" // the root directory must either be set to "/" or be omitted.
+      transit_encryption      = "ENABLED"
+      # Added: transit_encryption_port. Default is 2049 if not specified.
+      transit_encryption_port = 2049 # Standard NFS port for TLS
+      # access_point_id and iam are directly under efs_volume_configuration,
+      # not nested in an authorization_config block, per Terraform's syntax.
+      authorization_config {
+        access_point_id = var.efs_access_point_id
+        iam             = "ENABLED"
+      }
+    }
+  }  
+
   # Container definition in JSON format
   container_definitions = jsonencode([
     {
@@ -285,7 +306,16 @@ resource "aws_ecs_task_definition" "web_app_task" {
           "awslogs-region"        = var.aws_region # Assuming you have this variable. Add if not.
           "awslogs-stream-prefix" = "ecs"
         }
-      }
+      },
+      mountPoints = [
+        {
+          # This 'sourceVolume' MUST match the 'name' given in the 'volume' block above
+          sourceVolume  = "${var.project_name_prefix}-${var.environment_name}-efs-volume",
+          # This is the path inside your Docker container where EFS will be mounted
+          containerPath = var.container_mount_path # You should define this variable in your project's variables.tf
+          readOnly      = false                   # Set to true if container should not write to EFS
+        }
+      ]
     }
   ])
 
@@ -346,17 +376,39 @@ resource "aws_security_group" "ecs_tasks_sg" {
     security_groups = [aws_security_group.alb_sg.id]
   }
 
+  # It is managed below
   # Outbound rule: Allow all outbound traffic (e.g., to fetch data, log, etc.)
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # egress {
+  #   from_port   = 0
+  #   to_port     = 0
+  #   protocol    = "-1"
+  #   cidr_blocks = ["0.0.0.0/0"]
+  # }
 
   tags = {
     Name = "${var.project_name_prefix}-${var.environment_name}-ecs-tasks-sg"
   }
+}
+
+resource "aws_security_group_rule" "ecs_tasks_all_outbound_egress" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1" # Represents all protocols
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.ecs_tasks_sg.id
+  description       = "Allow all outbound traffic from ECS tasks"
+}
+
+# Your existing EFS egress rule (no changes needed here)
+resource "aws_security_group_rule" "ecs_tasks_to_efs_egress" {
+  type                     = "egress"
+  from_port                = 2049
+  to_port                  = 2049
+  protocol                 = "tcp"
+  security_group_id        = aws_security_group.ecs_tasks_sg.id
+  source_security_group_id = var.efs_security_group_id
+  description              = "Allow outbound NFS to EFS"
 }
 
 # Application Load Balancer (ALB)
