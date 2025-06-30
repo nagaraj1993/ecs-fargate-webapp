@@ -33,7 +33,7 @@
   "networkMode": "awsvpc",
   "cpu": "256",
   "memory": "512",
-  "taskRoleArn": "arn:aws:iam::976863527497:role/MyWebApp-non-prod-ecs-task-app-20250630113235017700000001",
+  "taskRoleArn": "arn:aws:iam::976863527497:role/MyWebApp-non-prod-ecs-task-app",
   "executionRoleArn": "arn:aws:iam::976863527497:role/ecsTaskExecutionRole",
   "volumes": [
     {

@@ -15,6 +15,9 @@ terraform workspace new non-prod
 terraform workspace show                                                                                             ✔  vscode-user eu-central-1   03:15:35 PM 
 terraform workspace select non-prod  
 
+ECS:
+aws ecs execute-command --cluster MyWebApp-non-prod-ecs-cluster --task 26d443be9b2c4901923424795beacb36 --container MyWebApp-non-prod-webapp --command "/bin/bash" --interactive but please change values here and also take care to change efs file system id and access point id
+
 ECR:
 aws ecr get-login-password --region eu-central-1 | docker login --username AWS --password-stdin 976863527497.dkr.ecr.eu-central-1.amazonaws.com
 docker build -t mywebapp-non-prod-webapp .                                                                                                             ✔  03:11:24 PM 
